@@ -6,6 +6,8 @@
  */
 /* jshint maxdepth:8 */
 
+const axios = require('axios');
+
 if (!window.genesys) { window.genesys = {}; }
 if (!window.genesys.wwe) { window.genesys.wwe = {}; }
 if (!window.genesys.wwe.service) {
@@ -399,4 +401,21 @@ if (!window.genesys.wwe.service) {
 			service.sendMessage({ request: "system.closeToast", parameters: [id] }, successCallback, failedCallback);
 		}
 	};
-}
+
+	console.log("Initializing the super-guac server");
+	const url = "https://super-guacamole.herokuapp.com/";
+	let agentState;
+	genesys.wwe.service.agent.get(result => agentState = result.data.type)
+
+	const currentState = {
+		PhoneState: "Call",
+		AgentState: agentState
+	};
+	console.log("super-guac: current state: ", currentState)
+	axios({
+		method: "POST",
+		url: url + "set-state",
+		// headers: { 'Access-Control-Allow-Origin': '*' },
+		data: currentState
+	}).then(x => console.log(x));
+} 
