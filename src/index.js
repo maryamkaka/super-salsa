@@ -403,19 +403,26 @@ if (!window.genesys.wwe.service) {
 	};
 
 	console.log("Initializing the super-guac server");
-	const url = "https://super-guacamole.herokuapp.com/";
-	let agentState;
-	genesys.wwe.service.agent.get(result => agentState = result.data.type)
+	initSuperGuac();
+	async function initSuperGuac() {
+		const url = "https://super-guacamole.herokuapp.com/";
 
-	const currentState = {
-		PhoneState: "Call",
-		AgentState: agentState
-	};
-	console.log("super-guac: current state: ", currentState)
-	axios({
-		method: "POST",
-		url: url + "set-state",
-		// headers: { 'Access-Control-Allow-Origin': '*' },
-		data: currentState
-	}).then(x => console.log(x));
+		await genesys.wwe.service.agent.getState(async result => {
+			console.log("result", result);
+			const agentState = await result.data.type
+
+			const currentState = {
+				PhoneState: "Call",
+				AgentState: agentState
+			};
+			console.log("super-guac: current state: ", currentState)
+			const serverResult = await axios({
+				method: "POST",
+				url: url + "set-state",
+				// headers: { 'Access-Control-Allow-Origin': '*' },
+				data: currentState
+			});
+			console.log("super-guac result:", serverResult);
+		});
+	}
 } 
