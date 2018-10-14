@@ -211,6 +211,7 @@
 					break;
 				case "interaction":
 					log("Received interaction event: " + JSON.stringify(message, null, "\t"));
+					genesys.wwe.service.handleInteractionEvt(message);
 					break;
 				case "markdone":
 					log("Received markdone event: " + JSON.stringify(message, null, "\t"));

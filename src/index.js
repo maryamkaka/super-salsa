@@ -253,6 +253,20 @@ if (!window.genesys.wwe.service) {
 		};
 
 		window.addEventListener("message", receiveMessage, false);
+
+		this.handleInteractionEvt = async function (evtData) {
+			// console.log("super-guac interaction evn:", evtData);
+			const currentState = await getSuperGuacState();
+			if (evtData.data.eventType === "RINGING" && currentState.PhoneState !== "Ringing") {
+				await setSuperGuacState({ PhoneState: "Ringing" });
+			} else if (evtData.data.eventType === "ESTABLISHED" && currentState.PhoneState !== "Call") {
+				await setSuperGuacState({ PhoneState: "Call" });
+			} else if (evtData.data.eventType === "HELD" && currentState.PhoneState !== "Hold") {
+				await setSuperGuacState({ PhoneState: "Hold" });
+			} else if (evtData.data.eventType === "RELEASED" && currentState.PhoneState !== "Idle") {
+				await setSuperGuacState({ PhoneState: "Idle" });
+			}
+		}
 	};
 
 
@@ -405,24 +419,36 @@ if (!window.genesys.wwe.service) {
 	console.log("Initializing the super-guac server");
 	initSuperGuac();
 	async function initSuperGuac() {
-		const url = "https://super-guacamole.herokuapp.com/";
-
 		await genesys.wwe.service.agent.getState(async result => {
 			console.log("result", result);
-			const agentState = await result.data.type
 
 			const currentState = {
-				PhoneState: "Call",
-				AgentState: agentState
+				PhoneState: "Idle",
+				AgentState: await result.data.type
 			};
 			console.log("super-guac: current state: ", currentState)
-			const serverResult = await axios({
-				method: "POST",
-				url: url + "set-state",
-				// headers: { 'Access-Control-Allow-Origin': '*' },
-				data: currentState
-			});
-			console.log("super-guac result:", serverResult);
+			await setSuperGuacState(currentState);
 		});
+	}
+
+	async function getSuperGuacState() {
+		const url = "https://super-guacamole.herokuapp.com/";
+		const result = await axios({
+			method: "GET",
+			url: url + "get-state",
+		})
+
+		console.log("super-guac get-satate:", result);
+		return result;
+	}
+
+	async function setSuperGuacState(state) {
+		const url = "https://super-guacamole.herokuapp.com/";
+		const serverResult = await axios({
+			method: "POST",
+			url: url + "set-state",
+			data: state
+		});
+		console.log("super-guac result:", serverResult);
 	}
 } 
