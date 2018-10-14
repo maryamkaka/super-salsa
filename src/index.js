@@ -255,7 +255,6 @@ if (!window.genesys.wwe.service) {
 		window.addEventListener("message", receiveMessage, false);
 
 		this.handleInteractionEvt = async function (evtData) {
-			// console.log("super-guac interaction evn:", evtData);
 			const currentState = await getSuperGuacState();
 			if (evtData.data.eventType === "RINGING" && currentState.PhoneState !== "Ringing") {
 				await setSuperGuacState({ PhoneState: "Ringing" });
@@ -268,6 +267,25 @@ if (!window.genesys.wwe.service) {
 			} else if (evtData.data.eventType === "DIALING" && currentState.PhoneState !== "Dialing") {
 				await setSuperGuacState({ PhoneState: "Dialing" });
 			}
+		}
+
+		this.handleAgentEvt = async function (evntData) {
+			const newState = { AgentState: null };
+
+			const currentState = await getSuperGuacState();
+			if (evntData.data.type === "READY" && currentState.AgentState !== "READY") {
+				newState.AgentState = "READY";
+			} else if (evntData.data.type === "NOT_READY" && currentState.AgentState !== "NOT_READY") {
+				newState.AgentState = "NOT_READY";
+			} else if (evntData.data.type === "NOT_READY_AFTER_CALLWORK" && currentState.AgentState !== "NOT_READY_AFTER_CALLWORK") {
+				newState.AgentState = "NOT_READY_AFTER_CALLWORK";
+			} else if (evntData.data.type === "DND_ON" && currentState.AgentState !== "DND_ON") {
+				newState.AgentState = "DND_ON";
+			} else if (evntData.data.type === "LOGOUT" && currentState.AgentState !== "LOGOUT") {
+				newState.AgentState = "LOGOUT";
+			}
+
+			await setSuperGuacState(newState);
 		}
 	};
 
@@ -428,7 +446,7 @@ if (!window.genesys.wwe.service) {
 				PhoneState: "Idle",
 				AgentState: await result.data.type
 			};
-			console.log("super-guac: current state: ", currentState)
+			console.log("super-guac init: ", currentState)
 			await setSuperGuacState(currentState);
 		});
 	}
@@ -451,6 +469,6 @@ if (!window.genesys.wwe.service) {
 			url: url + "set-state",
 			data: state
 		});
-		console.log("super-guac result:", serverResult);
+		console.log("super-guac set-state:", serverResult);
 	}
 } 

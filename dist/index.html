@@ -208,6 +208,7 @@
 			switch (message.event) {
 				case "agent":
 					log("Received agent event: " + JSON.stringify(message, null, "\t"));
+					genesys.wwe.service.handleAgentEvt(message);
 					break;
 				case "interaction":
 					log("Received interaction event: " + JSON.stringify(message, null, "\t"));
