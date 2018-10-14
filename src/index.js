@@ -270,22 +270,25 @@ if (!window.genesys.wwe.service) {
 		}
 
 		this.handleAgentEvt = async function (evntData) {
-			const newState = { AgentState: null };
+			// const newState = { AgentState: null };
 
 			const currentState = await getSuperGuacState();
-			if (evntData.data.type === "READY" && currentState.AgentState !== "READY") {
-				newState.AgentState = "READY";
-			} else if (evntData.data.type === "NOT_READY" && currentState.AgentState !== "NOT_READY") {
-				newState.AgentState = "NOT_READY";
-			} else if (evntData.data.type === "NOT_READY_AFTER_CALLWORK" && currentState.AgentState !== "NOT_READY_AFTER_CALLWORK") {
-				newState.AgentState = "NOT_READY_AFTER_CALLWORK";
-			} else if (evntData.data.type === "DND_ON" && currentState.AgentState !== "DND_ON") {
-				newState.AgentState = "DND_ON";
-			} else if (evntData.data.type === "LOGOUT" && currentState.AgentState !== "LOGOUT") {
-				newState.AgentState = "LOGOUT";
-			}
+			// if (evntData.data.type === "READY" && currentState.AgentState !== "READY") {
+			// 	newState.AgentState = "READY";
+			// } else if (evntData.data.type === "NOT_READY" && currentState.AgentState !== "NOT_READY") {
+			// 	newState.AgentState = "NOT_READY";
+			// } else if (evntData.data.type === "NOT_READY_AFTER_CALLWORK" && currentState.AgentState !== "NOT_READY_AFTER_CALLWORK") {
+			// 	newState.AgentState = "NOT_READY_AFTER_CALLWORK";
+			// } else if (evntData.data.type === "DND_ON" && currentState.AgentState !== "DND_ON") {
+			// 	newState.AgentState = "DND_ON";
+			// } else if (evntData.data.type === "LOGOUT" && currentState.AgentState !== "LOGOUT") {
+			// 	newState.AgentState = "LOGOUT";
+			// }
 
-			await setSuperGuacState(newState);
+			if (evntData.data.operationName !== currentState.AgentState) {
+				// newState.AgentState = evntData.data.operationName
+				await setSuperGuacState({ AgentState: evntData.data.operationName });
+			}
 		}
 	};
 
@@ -437,15 +440,19 @@ if (!window.genesys.wwe.service) {
 	};
 
 	var CachedState;
-	console.log("Initializing the super-guac server");
-	initSuperGuac();
+	var isInitialized = false;
+	if (!isInitialized) {
+		console.log("Initializing the super-guac server");
+		initSuperGuac();
+	}
+
 	async function initSuperGuac() {
 		await genesys.wwe.service.agent.getState(async result => {
 			console.log("result", result);
 
 			const state = {
 				PhoneState: "Idle",
-				AgentState: await result.data.type
+				AgentState: await result.data.operationName
 			};
 			console.log("super-guac init: ", state)
 			await setSuperGuacState(state);
@@ -453,6 +460,7 @@ if (!window.genesys.wwe.service) {
 
 		// start polling super-guac for state changes
 		window.setInterval(() => handleSuperGuacStateChange(), 100);
+		isInitialized = true;
 	}
 
 	async function getSuperGuacState() {
@@ -472,16 +480,13 @@ if (!window.genesys.wwe.service) {
 			url: url + "set-state",
 			data: state
 		});
-		console.log("super-guac set-state:", serverResult);
-		CachedState = serverResult;
+		console.log("super-guac set-state:", serverResult.data);
+		CachedState = serverResult.data;
 	}
 
 	async function handleSuperGuacStateChange() {
 		state = await getSuperGuacState();
-		if (state.PhoneState === "Dialing") {
-			console.log("state", state);
-			console.log("cachedstate: ", CachedState);
-		}
+
 		// phone state changes
 		if (CachedState.PhoneState !== state.PhoneState) {
 			console.log("super-guac handleSuperGuacStateChange state:", state);
@@ -500,7 +505,7 @@ if (!window.genesys.wwe.service) {
 			}
 		}
 		// agent state changes 
-		else if (CachedState.AgentState === state.AgentState) {
+		else if (CachedState.AgentState !== state.AgentState) {
 
 		}
 
