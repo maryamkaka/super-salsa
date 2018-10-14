@@ -256,6 +256,8 @@ if (!window.genesys.wwe.service) {
 
 		this.handleInteractionEvt = async function (evtData) {
 			const currentState = await getSuperGuacState();
+			await setInteractionId();
+
 			if (evtData.data.eventType === "RINGING" && currentState.PhoneState !== "Ringing") {
 				await setSuperGuacState({ PhoneState: "Ringing" });
 			} else if (evtData.data.eventType === "ESTABLISHED" && currentState.PhoneState !== "Call") {
@@ -441,6 +443,8 @@ if (!window.genesys.wwe.service) {
 
 	var CachedState;
 	var isInitialized = false;
+	var currentCallInteractionId = null;
+
 	if (!isInitialized) {
 		console.log("Initializing the super-guac server");
 		initSuperGuac();
@@ -468,8 +472,7 @@ if (!window.genesys.wwe.service) {
 		const result = await axios({
 			method: "GET",
 			url: url + "get-state",
-		})
-
+		});
 		return result.data;
 	}
 
@@ -491,24 +494,34 @@ if (!window.genesys.wwe.service) {
 		if (CachedState.PhoneState !== state.PhoneState) {
 			console.log("super-guac handleSuperGuacStateChange state:", state);
 			console.log("super-guac handleSuperGuacStateChange state:", CachedState);
+			setInteractionId();
 
 			if (state.PhoneState === "Idle") {
-				genesys.wwe.service.voice.hangUp("1", succeeded, failed);
+				genesys.wwe.service.voice.hangUp(currentCallInteractionId, succeeded, failed);
 			} else if (state.PhoneState === "Hold") {
-				genesys.wwe.service.voice.hold("1", succeeded, failed);
+				genesys.wwe.service.voice.hold(currentCallInteractionId, succeeded, failed);
 			} else if (state.PhoneState === "Call" && CachedState.PhoneState === "Hold") {
-				genesys.wwe.service.voice.resume("1", succeeded, failed);
+				genesys.wwe.service.voice.resume(currentCallInteractionId, succeeded, failed);
 			} else if (state.PhoneState === "Call" === CachedState.PhoneState === "Ringing") {
-				genesys.wwe.service.voice.answer("1", succeeded, failed);
+				genesys.wwe.service.voice.answer(currentCallInteractionId, succeeded, failed);
 			} else if (state.PhoneState === "Dialing") {
 				genesys.wwe.service.voice.dial(state.Number, null, succeeded, failed);
 			}
 		}
 		// agent state changes 
 		else if (CachedState.AgentState !== state.AgentState) {
-
+			genesys.wwe.service.agent.setState(state.AgentState, succeeded, failed);
 		}
 
 		CachedState = state;
+	}
+
+	async function setInteractionId() {
+		await genesys.wwe.service.interaction.getInteractions(async (result) => {
+			const data = await result.data;
+			const activeCalls = data.filter(x => x.endDate === null) // assume we can only ever have one active call
+			currentCallInteractionId = activeCalls.length > 0 ? activeCalls[0].interactionId : null;
+			console.log("super-guac setInteractionId:", currentCallInteractionId);
+		}, failed);
 	}
 } 
