@@ -265,6 +265,8 @@ if (!window.genesys.wwe.service) {
 				await setSuperGuacState({ PhoneState: "Hold" });
 			} else if (evtData.data.eventType === "RELEASED" && currentState.PhoneState !== "Idle") {
 				await setSuperGuacState({ PhoneState: "Idle" });
+			} else if (evtData.data.eventType === "DIALING" && currentState.PhoneState !== "Dialing") {
+				await setSuperGuacState({ PhoneState: "Dialing" });
 			}
 		}
 	};
