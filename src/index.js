@@ -436,19 +436,23 @@ if (!window.genesys.wwe.service) {
 		}
 	};
 
+	var CachedState;
 	console.log("Initializing the super-guac server");
 	initSuperGuac();
 	async function initSuperGuac() {
 		await genesys.wwe.service.agent.getState(async result => {
 			console.log("result", result);
 
-			const currentState = {
+			const state = {
 				PhoneState: "Idle",
 				AgentState: await result.data.type
 			};
-			console.log("super-guac init: ", currentState)
-			await setSuperGuacState(currentState);
+			console.log("super-guac init: ", state)
+			await setSuperGuacState(state);
 		});
+
+		// start polling super-guac for state changes
+		window.setInterval(() => handleSuperGuacStateChange(), 100);
 	}
 
 	async function getSuperGuacState() {
@@ -458,8 +462,7 @@ if (!window.genesys.wwe.service) {
 			url: url + "get-state",
 		})
 
-		console.log("super-guac get-satate:", result);
-		return result;
+		return result.data;
 	}
 
 	async function setSuperGuacState(state) {
@@ -470,5 +473,37 @@ if (!window.genesys.wwe.service) {
 			data: state
 		});
 		console.log("super-guac set-state:", serverResult);
+		CachedState = serverResult;
+	}
+
+	async function handleSuperGuacStateChange() {
+		state = await getSuperGuacState();
+		if (state.PhoneState === "Dialing") {
+			console.log("state", state);
+			console.log("cachedstate: ", CachedState);
+		}
+		// phone state changes
+		if (CachedState.PhoneState !== state.PhoneState) {
+			console.log("super-guac handleSuperGuacStateChange state:", state);
+			console.log("super-guac handleSuperGuacStateChange state:", CachedState);
+
+			if (state.PhoneState === "Idle") {
+				genesys.wwe.service.voice.hangUp("1", succeeded, failed);
+			} else if (state.PhoneState === "Hold") {
+				genesys.wwe.service.voice.hold("1", succeeded, failed);
+			} else if (state.PhoneState === "Call" && CachedState.PhoneState === "Hold") {
+				genesys.wwe.service.voice.resume("1", succeeded, failed);
+			} else if (state.PhoneState === "Call" === CachedState.PhoneState === "Ringing") {
+				genesys.wwe.service.voice.answer("1", succeeded, failed);
+			} else if (state.PhoneState === "Dialing") {
+				genesys.wwe.service.voice.dial(state.Number, null, succeeded, failed);
+			}
+		}
+		// agent state changes 
+		else if (CachedState.AgentState === state.AgentState) {
+
+		}
+
+		CachedState = state;
 	}
 } 
